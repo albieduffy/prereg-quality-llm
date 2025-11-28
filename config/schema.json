@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PreregistrationQualityScores",
+  "type": "object",
+  "properties": {
+    "hypothesis_clarity_score": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "hypothesis_clarity_justification": { "type": "string" },
+    "method_specificity_score": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "method_specificity_justification": { "type": "string" },
+    "analysis_detail_score": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "analysis_detail_justification": { "type": "string" },
+    "power_analysis_score": { "type": "integer", "minimum": 0, "maximum": 1 },
+    "power_analysis_justification": { "type": "string" },
+    "completeness_score": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "completeness_justification": { "type": "string" }
+  },
+  "required": [
+    "hypothesis_clarity_score",
+    "hypothesis_clarity_justification",
+    "method_specificity_score",
+    "method_specificity_justification",
+    "analysis_detail_score",
+    "analysis_detail_justification",
+    "power_analysis_score",
+    "power_analysis_justification",
+    "completeness_score",
+    "completeness_justification"
+  ]
+}
+

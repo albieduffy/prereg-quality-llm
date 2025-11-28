@@ -1,0 +1,27 @@
+{
+  "hypothesis_clarity": {
+    "1": "No hypothesis or extremely vague.",
+    "3": "Hypothesis clear but lacks variable detail.",
+    "5": "Specific, directional hypotheses with explicit variables."
+  },
+  "method_specificity": {
+    "1": "Major method elements missing.",
+    "3": "Basic method with moderate detail.",
+    "5": "Complete, precise method description."
+  },
+  "analysis_detail": {
+    "1": "No analysis plan.",
+    "3": "Tests mentioned but incomplete.",
+    "5": "Fully specified tests/models mapped to hypotheses."
+  },
+  "power_analysis": {
+    "0": "No sample size justification or power analysis.",
+    "1": "Power analysis or explicit justification present."
+  },
+  "completeness": {
+    "1": "Many OSF template sections empty.",
+    "3": "Most sections filled but shallow.",
+    "5": "All sections complete and substantive."
+  }
+}
+
