@@ -1,184 +1,163 @@
 # Preregistration Quality LLM Evaluation
 
-A Python repository for evaluating preregistration quality using LLM scoring and human scoring. This project implements a complete pipeline from OSF data ingestion through LLM evaluation to statistical analysis.
+A Python repository for evaluating preregistration quality using LLM scoring and human scoring. This project is being developed in phases.
 
-## Repository Structure
+## Phase 0: OSF ID Discovery
 
-```
-prereg-quality-llm/
-├── config/          # Configuration files (rubric, schema, model config)
-├── data/            # Data directories (raw, processed, scores, merged)
-├── src/             # Source code modules
-└── scripts/         # Runnable pipeline scripts
-```
+**Current Status:** Phase 0 - Discovering Preregistration IDs
 
-## Setup
+Phase 0 focuses on discovering OSF preregistration IDs from the OSF registrations endpoint. This provides the list of IDs needed for Phase 1.
+
+### Setup
 
 1. **Install dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **Set up environment variables:**
+2. **Optional: Set up OSF API token** (for authenticated requests):
    ```bash
-   cp .env.example .env
-   # Edit .env and add your OPENAI_API_KEY
+   export OSF_API_TOKEN=your_token_here
+   ```
+   
+   Note: The scraper works without authentication, but authenticated requests may have higher rate limits.
+
+### Usage
+
+#### Discover all preregistration IDs
+
+```bash
+python scripts/discover_ids.py
+```
+
+This will query the OSF registrations endpoint, filter for preregistrations, and save all discovered IDs to `data/osf_ids.txt`.
+
+#### Limit the number of results
+
+```bash
+python scripts/discover_ids.py --max-results 100
+```
+
+#### Specify custom output file
+
+```bash
+python scripts/discover_ids.py --output data/my_prereg_ids.txt
+```
+
+#### Get all registrations (not just preregistrations)
+
+```bash
+python scripts/discover_ids.py --no-filter
+```
+
+#### Use API token
+
+```bash
+python scripts/discover_ids.py --token YOUR_TOKEN
+```
+
+Or set the environment variable:
+```bash
+export OSF_API_TOKEN=your_token_here
+python scripts/discover_ids.py
+```
+
+### Output
+
+The ID scraper saves discovered OSF IDs to a text file (default: `data/osf_ids.txt`), with one ID per line. This file can then be used as input for Phase 1.
+
+---
+
+## Phase 1: OSF Preregistration Scraper
+
+Phase 1 focuses on gathering full preregistration data from the Open Science Framework (OSF) API using the IDs discovered in Phase 0.
+
+### Usage
+
+#### Fetch specific OSF IDs
+
+```bash
+python scripts/scrape_osf.py --ids abc12 def34 ghi56
+```
+
+#### Fetch from a file (e.g., from Phase 0)
+
+```bash
+python scripts/scrape_osf.py --file data/osf_ids.txt
+```
+
+#### Specify output directory
+
+```bash
+python scripts/scrape_osf.py --ids abc12 --output data/raw
+```
+
+#### Use API token
+
+```bash
+python scripts/scrape_osf.py --ids abc12 --token YOUR_TOKEN
+```
+
+Or set the environment variable:
+```bash
+export OSF_API_TOKEN=your_token_here
+python scripts/scrape_osf.py --ids abc12
+```
+
+### Output
+
+The scraper saves each preregistration as a JSON file in the output directory (default: `data/raw/`). Each file contains:
+
+- `osf_id`: The OSF registration ID
+- `metadata`: Full registration metadata from OSF API
+- `full_text`: Extracted text content from associated files
+- `files_info`: Information about files associated with the registration
+
+### Typical Workflow
+
+1. **Phase 0:** Discover preregistration IDs
+   ```bash
+   python scripts/discover_ids.py --output data/osf_ids.txt
    ```
 
-3. **Configure model settings:**
-   Edit `config/model_config.yaml` to adjust model parameters if needed.
+2. **Phase 1:** Scrape preregistration data using discovered IDs
+   ```bash
+   python scripts/scrape_osf.py --file data/osf_ids.txt --output data/raw
+   ```
 
-## Usage
+---
 
-### 1. Fetch Preregistrations from OSF
+## Project Structure
 
-Fetch preregistrations using OSF IDs:
-
-```bash
-python scripts/fetch_osf.py --ids abc12 def34 ghi56 --output data/raw
+```
+prereg-quality-llm/
+├── src/
+│   └── osf/
+│       ├── __init__.py
+│       ├── id_scraper.py    # Phase 0: ID discovery
+│       └── scraper.py       # Phase 1: Preregistration scraper
+├── scripts/
+│   ├── discover_ids.py      # Phase 0 CLI script
+│   └── scrape_osf.py        # Phase 1 CLI script
+├── data/
+│   ├── osf_ids.txt          # Phase 0 output (discovered IDs)
+│   └── raw/                 # Phase 1 output (scraped data)
+├── requirements.txt         # Python dependencies
+└── README.md               # This file
 ```
 
-Or from a file (one OSF ID per line):
+## Future Phases
 
-```bash
-python scripts/fetch_osf.py --file osf_ids.txt --output data/raw
-```
-
-Optional: Set `OSF_API_TOKEN` environment variable for authenticated requests.
-
-### 2. Clean Preregistration Text
-
-Clean the raw OSF JSON files:
-
-```bash
-python scripts/clean_text.py \
-    --input data/raw \
-    --output data/processed
-```
-
-### 3. Score Preregistrations with LLM
-
-Score all cleaned preregistrations:
-
-```bash
-python scripts/score_llm.py \
-    --input data/processed \
-    --output data/scores_llm \
-    --config config/model_config.yaml
-```
-
-This will:
-- Load the rubric and schema from config
-- Send each preregistration to the LLM for scoring
-- Validate responses against the JSON schema
-- Save scores to `data/scores_llm/`
-
-### 4. Validate LLM Scores
-
-Validate all score JSON files against the schema:
-
-```bash
-python scripts/validate_scores.py \
-    --input data/scores_llm \
-    --schema config/schema.json
-```
-
-### 5. Merge Datasets
-
-Merge preregistration metadata, LLM scores, and human scores:
-
-```bash
-python scripts/merge_all.py \
-    --raw data/raw \
-    --llm-scores data/scores_llm \
-    --human-scores data/scores_human \
-    --output data/merged/analysis_dataset.csv
-```
-
-**Note:** Human scores should be in CSV format with an `osf_id` column matching the OSF IDs in your dataset.
-
-### 6. Run Statistical Analysis
-
-Run regression models on the merged dataset:
-
-```bash
-python scripts/run_analysis.py \
-    --input data/merged/analysis_dataset.csv \
-    --output data/merged/analysis_results \
-    --publication \
-    --time-to-pub \
-    --citations
-```
-
-The script will automatically detect which outcome variables are available and run the appropriate models:
-- **Logistic regression** for publication outcome (binary)
-- **Cox survival model** for time-to-publication
-- **Negative binomial regression** for citation counts
-
-## Configuration
-
-### Rubric (`config/rubric.json`)
-
-Defines the scoring criteria and scale for each dimension:
-- Hypothesis clarity (1-5)
-- Method specificity (1-5)
-- Analysis detail (1-5)
-- Power analysis (0-1)
-- Completeness (1-5)
-
-### Schema (`config/schema.json`)
-
-JSON Schema defining the expected structure of LLM score outputs. Ensures consistency and enables validation.
-
-### Model Config (`config/model_config.yaml`)
-
-Configuration for the LLM scorer:
-- Model name (default: gpt-4o)
-- Temperature (default: 0 for deterministic outputs)
-- Max tokens
-- Paths to schema and rubric files
-
-## Module Overview
-
-### `src/osf/`
-- **fetch_osf.py**: OSF API integration for fetching preregistration data
-
-### `src/cleaning/`
-- **clean_text.py**: Text cleaning utilities (HTML stripping, Unicode normalization)
-
-### `src/scoring/`
-- **build_prompt.py**: Prompt construction from rubric
-- **llm_scorer.py**: LLM scoring implementation using OpenAI API
-
-### `src/validation/`
-- **validate_json.py**: JSON schema validation utilities
-
-### `src/merge/`
-- **merge_datasets.py**: Dataset merging utilities
-
-### `src/analysis/`
-- **models.py**: Statistical models (logistic, Cox, negative binomial)
-
-### `src/utils/`
-- **io.py**: I/O utilities for JSON, text, and table files
-- **logging.py**: Centralized logging configuration
-
-## Data Flow
-
-1. **Raw data**: OSF JSON files → `data/raw/`
-2. **Processed data**: Cleaned text files → `data/processed/`
-3. **LLM scores**: Score JSON files → `data/scores_llm/`
-4. **Human scores**: CSV/JSON files → `data/scores_human/`
-5. **Merged dataset**: Final analysis dataset → `data/merged/`
-6. **Analysis results**: Model summaries → `data/merged/analysis_results/`
+- **Phase 2:** Text cleaning and preprocessing
+- **Phase 3:** LLM-based quality scoring
+- **Phase 4:** Human scoring integration
+- **Phase 5:** Statistical analysis and evaluation
 
 ## Requirements
 
 - Python 3.8+
-- OpenAI API key
-- See `requirements.txt` for full dependency list
+- See `requirements.txt` for dependencies
 
 ## License
 
 [Add your license here]
-

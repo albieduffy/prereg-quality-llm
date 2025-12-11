@@ -1,35 +1,32 @@
-"""OSF API integration for fetching preregistration data"""
+"""OSF API scraper for gathering preregistrations"""
 
 import json
+import os
 import requests
 from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
-from ..utils.io import save_json
-from ..utils.logging import setup_logging
 
-logger = setup_logging()
-
-
-class OSFFetcher:
-    """Fetcher for OSF preregistration data via API."""
+class OSFScraper:
+    """Scraper for OSF preregistration data via API."""
     
     BASE_URL = "https://api.osf.io/v2/"
     
     def __init__(self, api_token: Optional[str] = None):
         """
-        Initialize OSF fetcher.
+        Initialize OSF scraper.
         
         Args:
             api_token: Optional OSF API token for authenticated requests.
+                      Can also be set via OSF_API_TOKEN environment variable.
         """
-        self.api_token = api_token
+        self.api_token = api_token or os.getenv("OSF_API_TOKEN")
         self.session = requests.Session()
         
-        if api_token:
+        if self.api_token:
             self.session.headers.update({
-                "Authorization": f"Bearer {api_token}"
+                "Authorization": f"Bearer {self.api_token}"
             })
     
     def fetch_preregistration(self, osf_id: str) -> Dict:
@@ -41,10 +38,13 @@ class OSFFetcher:
         
         Returns:
             Dictionary containing preregistration metadata and content.
+        
+        Raises:
+            requests.HTTPError: If the API request fails.
         """
         # Fetch registration metadata
         reg_url = urljoin(self.BASE_URL, f"registrations/{osf_id}/")
-        logger.info(f"Fetching registration metadata for {osf_id}")
+        print(f"Fetching registration metadata for {osf_id}...")
         
         response = self.session.get(reg_url)
         response.raise_for_status()
@@ -52,13 +52,13 @@ class OSFFetcher:
         
         # Fetch full text from files
         files_url = reg_data["relationships"]["files"]["links"]["related"]["href"]
-        logger.info(f"Fetching files for {osf_id}")
+        print(f"Fetching files for {osf_id}...")
         
         files_response = self.session.get(files_url)
         files_response.raise_for_status()
         files_data = files_response.json()
         
-        # Extract text from files (prioritize .txt, .md, .docx if available)
+        # Extract text from files
         full_text = self._extract_text_from_files(files_data)
         
         result = {
@@ -96,7 +96,7 @@ class OSFFetcher:
                     text_content = response.text
                     text_parts.append(f"=== {file_name} ===\n{text_content}\n")
                 except Exception as e:
-                    logger.warning(f"Failed to fetch {file_name}: {e}")
+                    print(f"Warning: Failed to fetch {file_name}: {e}")
         
         return "\n".join(text_parts) if text_parts else ""
     
@@ -120,29 +120,16 @@ class OSFFetcher:
             try:
                 data = self.fetch_preregistration(osf_id)
                 output_path = output_dir / f"{osf_id}.json"
-                save_json(data, output_path)
+                self._save_json(data, output_path)
                 successful.append(osf_id)
-                logger.info(f"Saved {osf_id} to {output_path}")
+                print(f"✓ Saved {osf_id} to {output_path}")
             except Exception as e:
-                logger.error(f"Failed to fetch {osf_id}: {e}")
+                print(f"✗ Failed to fetch {osf_id}: {e}")
         
         return successful
-
-
-def fetch_from_file(input_file: Path, output_dir: Path, api_token: Optional[str] = None) -> None:
-    """
-    Fetch preregistrations from a file containing OSF IDs (one per line).
     
-    Args:
-        input_file: Path to file with OSF IDs (one per line).
-        output_dir: Directory to save raw JSON files.
-        api_token: Optional OSF API token.
-    """
-    with open(input_file, 'r') as f:
-        osf_ids = [line.strip() for line in f if line.strip()]
-    
-    fetcher = OSFFetcher(api_token=api_token)
-    successful = fetcher.fetch_multiple(osf_ids, output_dir)
-    
-    logger.info(f"Successfully fetched {len(successful)}/{len(osf_ids)} preregistrations")
+    def _save_json(self, data: Dict, filepath: Path) -> None:
+        """Save data to JSON file."""
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
 
