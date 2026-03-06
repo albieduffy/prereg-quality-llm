@@ -1,7 +1,7 @@
 """Tests for OSFIDScraper."""
 
 import pytest
-from src.osf.id_scraper import OSFIDScraper
+from osf_scraper.discovery import OSFIDScraper
 
 
 @pytest.fixture
@@ -25,8 +25,15 @@ class TestExtractId:
 
 class TestAddFilter:
     def test_adds_filter_to_plain_url(self, scraper):
-        url = scraper._add_filter("https://api.osf.io/v2/registrations/", "filter[category]", "preregistration")
-        assert "filter%5Bcategory%5D=preregistration" in url or "filter[category]=preregistration" in url
+        url = scraper._add_filter(
+            "https://api.osf.io/v2/registrations/",
+            "filter[category]",
+            "preregistration",
+        )
+        assert (
+            "filter%5Bcategory%5D=preregistration" in url
+            or "filter[category]=preregistration" in url
+        )
 
     def test_preserves_existing_params(self, scraper):
         url = scraper._add_filter(

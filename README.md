@@ -1,104 +1,103 @@
-# Preregistration Quality LLM Evaluation
+# osf-scraper
 
-A Python repository for evaluating preregistration quality using LLM scoring and human scoring. This project is being developed in phases.
+A Python package for scraping preregistration data from the [Open Science Framework (OSF)](https://osf.io).
 
-## Setup
+## Installation
 
-1. **Install the package and dependencies:**
-   ```bash
-   pip install -e .
-   ```
+```bash
+pip install -e .
+```
 
-2. **Install development dependencies** (for running tests):
-   ```bash
-   pip install -e ".[dev]"
-   ```
+For development (testing, linting):
 
-3. **Set up OSF API token** (recommended — authenticated requests have higher rate limits):
-   ```bash
-   cp .env.example .env
-   # Edit .env and set OSF_API_TOKEN=your_token_here
-   ```
-   Get your token at: https://osf.io/settings/tokens
+```bash
+pip install -e ".[dev]"
+```
+
+## Configuration
+
+Authenticated requests enjoy higher rate limits. Set your OSF API token via an
+environment variable:
+
+```bash
+export OSF_API_TOKEN=your_token_here
+```
+
+Or create a `.env` file in the project root:
+
+```
+OSF_API_TOKEN=your_token_here
+```
+
+Get your token at: <https://osf.io/settings/tokens>
 
 ---
 
-## Phase 0: OSF ID Discovery
+## CLI Commands
 
-Phase 0 discovers OSF preregistration IDs from the OSF registrations endpoint.
+After installation the following commands are available on your `PATH`:
 
-### Usage
+### `osf-discover` — Discover preregistration IDs
 
 ```bash
 # Discover all preregistration IDs
-python scripts/discover_ids.py
+osf-discover
 
 # Limit results
-python scripts/discover_ids.py --max-results 1000
+osf-discover --max-results 1000
 
 # Include all registrations (not just preregistrations)
-python scripts/discover_ids.py --no-filter
+osf-discover --no-filter
 
 # Use a specific API token
-python scripts/discover_ids.py --token YOUR_TOKEN
+osf-discover --token YOUR_TOKEN
 
 # Specify output file
-python scripts/discover_ids.py --output data/osf_ids.txt
+osf-discover --output data/osf_ids.txt
 ```
 
-### Output
-
-Discovered IDs are saved to `data/osf_ids.txt` (one per line). Existing IDs are deduplicated on append.
-
----
-
-## Phase 1: OSF Preregistration Scraper
-
-Phase 1 fetches full preregistration data from the OSF API using the IDs from Phase 0.
-
-### Usage
+### `osf-scrape` — Scrape registration data
 
 ```bash
 # Scrape from a file of IDs
-python scripts/scrape_osf.py --file data/osf_ids.txt
+osf-scrape --file data/osf_ids.txt
 
 # Specify output file
-python scripts/scrape_osf.py --file data/osf_ids.txt --output data/raw/preregistrations.jsonl
+osf-scrape --file data/osf_ids.txt --output data/raw/preregistrations.jsonl
 
-# Resume a previous run (append to existing output instead of overwriting)
-python scripts/scrape_osf.py --file data/osf_ids.txt --resume
+# Resume a previous run
+osf-scrape --file data/osf_ids.txt --resume
 ```
 
-### Output
-
-Saves each preregistration as a JSONL record (one JSON object per line) to `data/raw/preregistrations.jsonl`. Successfully processed IDs are tracked in `data/raw/successful_ids.txt`.
-
-### Compute remaining IDs (after a partial run)
+### `osf-remaining` — Compute remaining unprocessed IDs
 
 ```bash
-python scripts/remaining_ids.py
-# or with custom paths:
-python scripts/remaining_ids.py --all-ids data/osf_ids.txt --successful-ids data/raw/successful_ids.txt --output data/osf_ids_remaining.txt
+osf-remaining
+
+# With custom paths
+osf-remaining --all-ids data/osf_ids.txt \
+              --successful-ids data/raw/successful_ids.txt \
+              --output data/osf_ids_remaining.txt
 ```
 
----
-
-## Processing & Analysis
-
-### Flatten raw JSONL into a normalised DataFrame
+### `osf-process` — Flatten raw JSONL into normalised data
 
 ```bash
-python scripts/process_registrations.py
-# or with custom paths:
-python scripts/process_registrations.py --input data/raw/preregistrations.jsonl --output data/processed/preregistrations.jsonl
+osf-process
+
+# With custom paths
+osf-process --input data/raw/preregistrations.jsonl \
+            --output data/processed/preregistrations.jsonl
 ```
 
-### Extract column names from processed data
+### `osf-analyse` — Extract column names from processed data
 
 ```bash
-python scripts/analyse.py
-# or with custom paths:
-python scripts/analyse.py --input data/processed/preregistrations.jsonl --output data/analysed/columns.json
+osf-analyse
+
+# With custom paths
+osf-analyse --input data/processed/preregistrations.jsonl \
+            --output data/analysed/columns.json
 ```
 
 ---
@@ -107,20 +106,41 @@ python scripts/analyse.py --input data/processed/preregistrations.jsonl --output
 
 ```bash
 # 1. Discover IDs
-python scripts/discover_ids.py --output data/osf_ids.txt
+osf-discover --output data/osf_ids.txt
 
 # 2. Scrape registration data
-python scripts/scrape_osf.py --file data/osf_ids.txt
+osf-scrape --file data/osf_ids.txt
 
 # 3. If interrupted, compute remaining IDs and resume
-python scripts/remaining_ids.py
-python scripts/scrape_osf.py --file data/osf_ids_remaining.txt --resume
+osf-remaining
+osf-scrape --file data/osf_ids_remaining.txt --resume
 
-# 4. Flatten to DataFrame
-python scripts/process_registrations.py
+# 4. Flatten to normalised DataFrame
+osf-process
 
 # 5. Analyse columns
-python scripts/analyse.py
+osf-analyse
+```
+
+---
+
+## Python API
+
+You can also use the package programmatically:
+
+```python
+from osf_scraper import OSFIDScraper
+
+scraper = OSFIDScraper(api_token="your_token")
+ids = scraper.discover_preregistration_ids(max_results=100)
+scraper.save_ids(ids, "data/osf_ids.txt")
+```
+
+```python
+from osf_scraper import process_registrations
+
+process_registrations("data/raw/preregistrations.jsonl",
+                      "data/processed/preregistrations.jsonl")
 ```
 
 ---
@@ -136,47 +156,29 @@ pytest
 ## Project Structure
 
 ```
-prereg-quality-llm/
+osf-scraper/
 ├── src/
-│   └── osf/
-│       ├── __init__.py
-│       └── id_scraper.py         # OSF ID discovery module
-├── scripts/
-│   ├── discover_ids.py           # Phase 0: discover preregistration IDs
-│   ├── scrape_osf.py             # Phase 1: scrape registration data
-│   ├── process_registrations.py  # Flatten JSONL to normalised DataFrame
-│   ├── analyse.py                # Extract column names from processed data
-│   ├── remaining_ids.py          # Compute unprocessed IDs after partial run
-│   └── test_rate_limit.py        # Manual rate limit threshold testing
+│   └── osf_scraper/
+│       ├── __init__.py        # Package exports
+│       ├── cli.py             # CLI entry points
+│       ├── discovery.py       # OSF ID discovery (OSFIDScraper)
+│       ├── scraper.py         # Async batch scraper (TokenBucket, fetch logic)
+│       ├── processing.py      # JSONL flattening & analysis
+│       └── utils.py           # Remaining-IDs computation
 ├── tests/
 │   ├── test_id_scraper.py
 │   ├── test_token_bucket.py
 │   └── test_process_registrations.py
-├── data/
-│   ├── osf_ids.txt               # Discovered IDs (Phase 0 output)
-│   ├── osf_ids_remaining.txt     # Remaining IDs after partial scrape
-│   ├── raw/                      # Raw scraped JSONL data
-│   ├── processed/                # Normalised JSONL data
-│   └── analysed/                 # Analysis outputs
-├── .env.example                  # Environment variable template
-├── pyproject.toml                # Project metadata and dependencies
-└── README.md                     # This file
+├── data/                      # Data directory (not tracked)
+├── pyproject.toml             # Package metadata, deps, entry points
+└── README.md
 ```
-
----
-
-## Future Phases
-
-- **Phase 2:** Text cleaning and preprocessing
-- **Phase 3:** LLM-based quality scoring
-- **Phase 4:** Human scoring integration
-- **Phase 5:** Statistical analysis and evaluation
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - Dependencies managed via `pyproject.toml` — install with `pip install -e .`
 
 ## License
 
-[Add your license here]
+MIT — see [LICENSE](LICENSE) for details.

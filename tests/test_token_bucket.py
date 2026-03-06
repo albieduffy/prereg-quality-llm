@@ -2,12 +2,14 @@
 
 import asyncio
 import time
+
 import pytest
-from scripts.scrape_osf import TokenBucket
+from osf_scraper.scraper import TokenBucket
 
 
 def test_token_bucket_allows_burst():
     """Bucket with capacity=5 should allow 5 immediate acquisitions."""
+
     async def run():
         bucket = TokenBucket(rate=5.0, capacity=5.0)
         start = time.monotonic()
@@ -21,6 +23,7 @@ def test_token_bucket_allows_burst():
 
 def test_token_bucket_rate_limits():
     """Acquiring more than capacity should introduce a delay."""
+
     async def run():
         bucket = TokenBucket(rate=10.0, capacity=1.0)
         await bucket.acquire()  # consume the single token

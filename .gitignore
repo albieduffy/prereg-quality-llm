@@ -29,15 +29,13 @@ ENV/
 # IDE
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 *~
 
 # Data (scraped preregistrations)
-data/raw/*.jsonl
-data/processed/
-data/scores_*/
-data/merged/
+data/*
 
 # Environment variables
 .env
